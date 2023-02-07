@@ -1,0 +1,77 @@
+{
+		"variables" : {
+			"region" : "us-east-1",
+			"aws_access_key_id": "{{ env `AWS_ACCESS_KEY_ID` }}",
+			"aws_secret_access_key": "{{ env `AWS_SECRET_ACCESS_KEY` }}",
+			"source_ami" : "ami-033b95fb8079dc481" 
+		},
+		"builders" : [
+			{
+				"type" : "amazon-ebs",
+				"profile" : "default",
+				"region" : "us-east-1",
+				"access_key": "--access-key--",
+				"secret_key": "--Secret-key--",
+				"instance_type" : "t2.micro",
+				"source_ami" : "ami-033b95fb8079dc481",
+				"ssh_username" : "ec2-user",
+				"ami_name" : "custom-ami_{{timestamp}}",
+				"ami_description" : "Amazon Machine Image",
+				"ami_users": ["Multiple account no(eg dev and prod)"],
+				"run_tags" : {
+					"Name" : "packer-builder"
+				},
+				"ami_block_device_mappings": [
+				  {
+					"delete_on_termination": true,
+					"device_name": "/dev/xvda",
+					"volume_size": 60,
+					"volume_type": "gp2"
+				  }
+				],
+				"tags" : {
+					"Tool" : "Packer",
+					"Author" : "user",
+					"Environment" : "dev"
+				}
+			}
+		],
+		"provisioners" : [
+			{
+				"type": "file",
+				"source": "assignment-0.0.1-SNAPSHOT.jar",
+				"destination": "assignment-0.0.1-SNAPSHOT.jar"
+			},
+			{
+				"type": "file",
+				"source": "webservice.service",
+				"destination": "/tmp/"
+			},
+			{
+				"type": "shell",
+				"inline": ["sleep 30",
+				"sudo yum -y install java-11",
+				"echo 'Install epel'",
+				"sudo amazon-linux-extras install epel",
+				"sleep 10"
+				]
+			},
+			{
+				"type": "shell",
+				"inline":[
+					"sudo yum update -y",
+              		"sudo yum install ruby -y",
+              		"sudo yum install wget -y",
+              		"wget https://aws-codedeploy-us-east-1.s3.amazonaws.com/latest/install",
+              		"chmod +x ./install",
+              		"sudo ./install auto",
+					"sudo yum install amazon-cloudwatch-agent -y",
+					"echo '****** Moving webservice! *******'",
+					"sudo cp /tmp/webservice.service /etc/systemd/system",
+					"sudo systemctl start webservice.service",
+					"sudo systemctl enable webservice.service",
+					"echo '****** Copied webservice! *******'"
+				]
+			}
+		]
+	}

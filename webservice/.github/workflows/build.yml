@@ -1,0 +1,109 @@
+#Workflow name
+name: CI/CD Pipeline
+on:
+  #Manually trigger workflow runs
+  workflow_dispatch:
+  #Trigger the workflow on push from the main branch
+  push:
+    branches:
+      - main
+      
+env:
+  ## Sets environment variable
+  database98365: testinngggg
+  bucketName: testwebappashish12.dev.domain.tld
+  bucket_name: bucket.dev.ashishpandey.me
+  ARTIFACT_NAME: csye6225-webapp-${{ github.sha }}.zip
+  CODEDEPLOY_APPLICATION_NAME: csye6225-webapp
+  CODEDEPLOY_APPLICATION_DEPLOYMENT_GROUP_NAME: csye6225-webapp-deployment
+  AWS_REGION: us-east-1
+  snstopic: testSns
+  snstopicArn: testSnsArn
+  # AWS_ACCESS_KEY_ID: AKIAZFAFK6BV563J5HWI
+  # AWS_SECRET_ACCESS_KEY: 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
+  # S3_CODEDEPLOY_BUCKET: ashish-csye6225
+
+
+jobs:
+  #Test's job
+  tests:
+    name: Unit tests
+    #Run on Ubuntu using the latest version
+    runs-on: ubuntu-latest
+    #Job's steps
+    steps:
+      #Check-out your repository under $GITHUB_WORKSPACE, so your workflow can access it
+      - uses: actions/checkout@v1
+      #Set up JDK 11
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      #Set up Maven cache
+      - name: Cache Maven packages
+        #This action allows caching dependencies and build outputs to improve workflow execution time.
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build with Maven
+
+        run: |
+          echo "${{ env.ARTIFACT_NAME }}" 
+          pwd
+          ls
+          mvn clean package
+          pwd
+          ls -al
+          
+      - name: Build Deployment Artifact
+        run: |
+          mkdir codedeploy_artifact
+          zip -r ${{ env.ARTIFACT_NAME }} ./target/assignment-0.0.1-SNAPSHOT.jar codedeploy/*.sh appspec.yml cloudwatch-config.json
+          pwd
+          ls -al
+          mv ${{ env.ARTIFACT_NAME }} codedeploy_artifact/
+          ls -al
+          pwd
+          cd codedeploy_artifact
+          pwd
+          ls -al
+          cd ..
+          pwd
+          ls -al
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} 
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Copy Artifact to S3
+        run: |
+          aws s3 sync ./codedeploy_artifact s3://${{ secrets.S3_CODEDEPLOY_BUCKET }}
+
+      - name: CodeDeploy API call
+        run: |
+          aws deploy create-deployment \
+          --application-name ${{ env.CODEDEPLOY_APPLICATION_NAME }} \
+          --deployment-config-name CodeDeployDefault.AllAtOnce \
+          --deployment-group-name ${{ env.CODEDEPLOY_APPLICATION_DEPLOYMENT_GROUP_NAME }} \
+          --s3-location bucket=${{ secrets.S3_CODEDEPLOY_BUCKET }},bundleType=zip,key=${{ env.ARTIFACT_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --output json
+
+      # #Run Tests
+      # - name: Run Tests
+      #   run: |
+      #     mvn clean install
+      #     mkdir stage && cp target/assignment-0.0.1-SNAPSHOT.jar stage
+      #     cp stage/*.jar ami
+      #     cd ami && ls -all
+
+      # - name: Packer build
+      #   uses: ExitoLab/packer_build_action_aws@v0.2.10
+      #   with:
+      #     templateFile: 'ami.json'
+      #     workingDir: 'ami'
