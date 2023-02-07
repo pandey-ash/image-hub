@@ -19,9 +19,6 @@ env:
   AWS_REGION: us-east-1
   snstopic: testSns
   snstopicArn: testSnsArn
-  # AWS_ACCESS_KEY_ID: AKIAZFAFK6BV563J5HWI
-  # AWS_SECRET_ACCESS_KEY: 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
-  # S3_CODEDEPLOY_BUCKET: ashish-csye6225
 
 
 jobs:
